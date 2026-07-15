@@ -11,29 +11,20 @@ if (!url || !anonKey || url.includes('your-project')) {
 export const supabase = createClient(url, anonKey)
 
 /**
- * Calls the `generate-report` Supabase Edge Function with a raw address
- * string and returns a ReportData-shaped object:
+ * Kicks off report generation. Returns almost immediately with a pending
+ * row — the actual research/drafting happens server-side in the background
+ * (see supabase/functions/generate-report), since it can take longer than
+ * Supabase's 150s request limit.
  *
- * {
- *   id, address, formattedAddress, createdAt,
- *   facts: [{ label, value, confidence, source_name, source_url }],
- *   narrative: { highestBestUse, overview, zoningSummary, permittingNotes, disclaimer },
- *   model: { siteAreaAcres, netDevelopableAcres, plannedBuildingSf, costLineItems, totalDevelopmentCost, scenarios }
- * }
+ * Returns: { id, address, formattedAddress, createdAt, status: 'pending' }
  */
-export async function generateReport(address) {
+export async function startReport(address) {
   const { data, error } = await supabase.functions.invoke('generate-report', {
-    // Explicitly stringify + set Content-Type ourselves rather than relying
-    // on invoke()'s automatic body-type detection — this guarantees a real,
-    // non-empty JSON body reaches the function regardless of SDK version.
     body: JSON.stringify({ address }),
     headers: { 'Content-Type': 'application/json' },
   })
 
   if (error) {
-    // If the function itself returned a non-2xx response with a JSON body
-    // (like our { error: "..." } shape), supabase-js exposes it on
-    // error.context — surface that instead of the generic SDK message.
     let detail = error.message
     if (error.context && typeof error.context.json === 'function') {
       try {
@@ -43,10 +34,56 @@ export async function generateReport(address) {
         // context body wasn't JSON (or was empty) — fall back to error.message
       }
     }
-    throw new Error(detail || 'Failed to generate report')
+    throw new Error(detail || 'Failed to start report generation')
   }
   if (!data || typeof data !== 'object' || !('id' in data)) {
     throw new Error('Malformed response from generate-report')
   }
   return data
+}
+
+/**
+ * Fetches the current state of a report row by id.
+ * status is 'pending' | 'ready' | 'error'.
+ */
+export async function getReport(id) {
+  const { data, error } = await supabase
+    .from('reports')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) throw new Error(error.message || 'Failed to fetch report')
+  return data
+}
+
+/**
+ * Polls getReport(id) until status is 'ready' or 'error', calling onTick
+ * with each intermediate row (handy for updating a "still working..." UI).
+ * Throws if the report errors out server-side, or if polling exceeds
+ * maxWaitMs without resolving.
+ */
+export async function pollReport(id, { intervalMs = 3000, maxWaitMs = 5 * 60 * 1000, onTick } = {}) {
+  const start = Date.now()
+  while (true) {
+    const row = await getReport(id)
+    onTick?.(row)
+
+    if (row.status === 'ready') {
+      return {
+        id: row.id,
+        address: row.address,
+        formattedAddress: row.formatted_address,
+        createdAt: row.created_at,
+        ...row.payload,
+      }
+    }
+    if (row.status === 'error') {
+      throw new Error(row.error_message || 'Report generation failed.')
+    }
+    if (Date.now() - start > maxWaitMs) {
+      throw new Error('This is taking longer than expected. Please try again in a moment.')
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+  }
 }
