@@ -1,4 +1,4 @@
-import { generateReport } from './api.js'
+import { startReport, pollReport } from './api.js'
 import {
   renderAddressForm,
   renderLoadingReport,
@@ -59,7 +59,8 @@ function wireAddressForm() {
 async function handleSubmit(address) {
   setState({ status: 'loading', address })
   try {
-    const report = await generateReport(address)
+    const pending = await startReport(address)
+    const report = await pollReport(pending.id)
     setState({ status: 'report', report })
   } catch (err) {
     setState({
