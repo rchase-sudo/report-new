@@ -22,8 +22,6 @@ if (!window.FORMA_CONFIG || !window.FORMA_CONFIG.SUPABASE_URL || !window.FORMA_C
 const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.FORMA_CONFIG;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const app = document.getElementById("app");
-
 const LOADING_MESSAGES = [
   "Pulling parcel and zoning context…",
   "Sizing the development program…",
