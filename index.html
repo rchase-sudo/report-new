@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FORMA · Development Analysis Generator</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind Play CDN — no build step needed. It watches the DOM, so
+       content injected later by app.js still gets styled. -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: '#0b0d0c',
+            surface: '#141716',
+            'surface-2': '#1b1f1d',
+            line: '#2a2f2c',
+            paper: '#ede7da',
+            'paper-dim': '#9a9488',
+            brass: '#c9a24b',
+            sage: '#7fa87f',
+            rust: '#b5563a',
+          },
+          fontFamily: {
+            display: ['Fraunces', 'Georgia', 'serif'],
+            mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
+          },
+        },
+      },
+    }
+  </script>
+
+  <link rel="stylesheet" href="./css/styles.css" />
+
+  <!-- Supabase client (calls the edge function + reads saved reports) -->
+  <script type="importmap">
+    {
+      "imports": {
+        "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
+      }
+    }
+  </script>
+
+  <!-- Client-side PDF export (renders the on-screen report to a downloadable PDF) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body class="bg-ink text-paper antialiased">
+  <div id="app" class="min-h-screen px-4 py-16 sm:py-24"></div>
+
+  <!-- Fill this in with your Supabase project URL + anon key — see README -->
+  <script src="./js/config.js"></script>
+  <script type="module" src="./js/report-template.js"></script>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
