@@ -23,11 +23,27 @@ export const supabase = createClient(url, anonKey)
  */
 export async function generateReport(address) {
   const { data, error } = await supabase.functions.invoke('generate-report', {
-    body: { address },
+    // Explicitly stringify + set Content-Type ourselves rather than relying
+    // on invoke()'s automatic body-type detection — this guarantees a real,
+    // non-empty JSON body reaches the function regardless of SDK version.
+    body: JSON.stringify({ address }),
+    headers: { 'Content-Type': 'application/json' },
   })
 
   if (error) {
-    throw new Error(error.message || 'Failed to generate report')
+    // If the function itself returned a non-2xx response with a JSON body
+    // (like our { error: "..." } shape), supabase-js exposes it on
+    // error.context — surface that instead of the generic SDK message.
+    let detail = error.message
+    if (error.context && typeof error.context.json === 'function') {
+      try {
+        const body = await error.context.json()
+        if (body?.error) detail = body.error
+      } catch {
+        // context body wasn't JSON (or was empty) — fall back to error.message
+      }
+    }
+    throw new Error(detail || 'Failed to generate report')
   }
   if (!data || typeof data !== 'object' || !('id' in data)) {
     throw new Error('Malformed response from generate-report')
