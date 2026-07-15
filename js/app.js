@@ -1,6 +1,24 @@
 import { createClient } from "@supabase/supabase-js";
 import { renderReport } from "./report-template.js";
 
+const app = document.getElementById("app");
+
+// Fail loudly and visibly instead of throwing at import time.
+if (!window.FORMA_CONFIG || !window.FORMA_CONFIG.SUPABASE_URL || !window.FORMA_CONFIG.SUPABASE_ANON_KEY) {
+  app.innerHTML = `
+    <div class="max-w-xl mx-auto text-center">
+      <div class="report-label text-brass text-xs mb-4">FORMA</div>
+      <p class="text-rust">
+        Configuration missing: <code class="font-mono">js/config.js</code> didn't load
+        or doesn't define <code class="font-mono">window.FORMA_CONFIG</code>.
+        Check the browser Network tab for a 404 on <code class="font-mono">config.js</code>,
+        and make sure it's committed to your repo (not excluded by .gitignore).
+      </p>
+    </div>
+  `;
+  throw new Error("FORMA_CONFIG is missing — see on-page message.");
+}
+
 const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.FORMA_CONFIG;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
